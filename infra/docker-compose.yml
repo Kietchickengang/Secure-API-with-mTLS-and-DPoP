@@ -1,0 +1,12 @@
+services:
+  auth-service:
+    image: k13tv777/ext-authz
+    ports:
+      - "50051:50051"
+    environment:
+      - REDIS_HOST=redis-db
+      - JWKS_URL=http://keycloak-server/certs
+    depends_on:
+      - redis-db
+  redis-db:
+    image: redis:alpine
