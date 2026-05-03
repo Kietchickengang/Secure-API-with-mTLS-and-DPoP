@@ -1,93 +1,104 @@
-static_resources:
-  listeners:
-  - name: https_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8443
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-
-        # Extract metadata from Client Certificate
-          forward_client_cert_details: SANITIZE_SET
-          set_current_client_cert_details:
-            hash: true
-            subject: true
-
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: backend
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  cluster: experiment_api 
-  
-          http_filters:
-          - name: envoy.filters.http.ext_authz
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-config
+data:
+  envoy.yml: |
+    static_resources:
+      listeners:
+      - name: https_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 8443
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
-              transport_api_version: V3
-              grpc_service:
-                envoy_grpc:
-                  cluster_name: ext_authz_cluster
-                timeout: 0.5s
-              include_peer_certificate: true
-          
-          - name: envoy.filters.http.router
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              access_log:
+              - name: envoy.access_loggers.stdout
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+
+            # Extract metadata from Client Certificate
+              forward_client_cert_details: SANITIZE_SET
+              set_current_client_cert_details:
+                subject: true
+                dns: true
+                uri: true
+
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: backend
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: experiment_api 
+      
+              http_filters:
+              - name: envoy.filters.http.ext_authz
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                  transport_api_version: V3
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: ext_authz_cluster
+                    timeout: 0.5s
+                  include_peer_certificate: true
+              
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+          # mTLS configuration
+          transport_socket:
+            name: envoy.transport_sockets.tls
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              require_client_certificate: true
+              common_tls_context:
+                tls_certificates:
+                - certificate_chain:
+                    filename: "/etc/envoy/certs/tls.crt"
+                  private_key:
+                    filename: "/etc/envoy/certs/tls.key"
+                validation_context:
+                  trusted_ca:
+                    filename: "/etc/envoy/certs/ca.crt"
+                  crl:
+                    filename: "/etc/envoy/crl/crl.pem"
 
-      # mTLS configuration
-      transport_socket:
-        name: envoy.transport_sockets.tls
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-          require_client_certificate: true
-          common_tls_context:
-            tls_certificates:
-            - certificate_chain:
-                filename: "/etc/envoy/certs/server.crt"
-              private_key:
-                filename: "/etc/envoy/certs/server.key"
-            validation_context:
-              trusted_ca:
-                filename: "/etc/envoy/certs/ca.crt"
-              crl:
-                filename: "/etc/envoy/certs/crl.pem"
+      clusters:
+      # Cluster for ext_authz service (Node.js)
+      - name: ext_authz_cluster
+        type: LOGICAL_DNS
+        lb_policy: ROUND_ROBIN
+        http2_protocol_options: {} # !important for gRPC 
+        load_assignment:
+          cluster_name: ext_authz_cluster
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: ext-authz-service.default.svc.cluster.local
+                    port_value: 50051
 
-  clusters:
-  # Cluster for ext_authz service (Node.js)
-  - name: ext_authz_cluster
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    http2_protocol_options: {} # !important for gRPC 
-    load_assignment:
-      cluster_name: ext_authz_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: ext_authz_service
-                port_value: 50051
-
-  # Cluster backend (experiment)
-  - name: experiment_api
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: experiment_api
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: httpbin
-                port_value: 8386
+      # Cluster backend (experiment)
+      - name: experiment_api
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: experiment_api
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: httpbin
+                    port_value: 8386

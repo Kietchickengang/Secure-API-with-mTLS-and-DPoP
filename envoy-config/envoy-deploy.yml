@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+      - name: envoy
+        image: envoyproxy/envoy:v1.26-latest
+        ports:
+        - containerPort: 8443
+          name: https
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/envoy/envoy.yml
+          subPath: envoy.yml
+        - name: certs-volume
+          mountPath: /etc/envoy/certs
+          readOnly: true
+        - name: crl-volume
+          mountPath: /etc/envoy/crl
+        args: ["-c", "/etc/envoy/envoy.yml", "--log-level", "info"]
+
+      volumes:
+      - name: config-volume
+        configMap:
+          name: envoy-config
+      - name: certs-volume
+        secret:
+          secretName: machine-client-tls
+      - name: crl-volume
+        secret:
+          secretName: envoy-crl
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-gateway-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+    targetPort: 8443
+    protocol: TCP
+    name: https
+  selector:
+    app: envoy

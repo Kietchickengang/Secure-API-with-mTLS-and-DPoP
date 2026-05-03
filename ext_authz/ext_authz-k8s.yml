@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ext-authz-deployment
+  labels:
+    app: ext-authz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ext-authz
+  template:
+    metadata:
+      labels:
+        app: ext-authz
+    spec:
+      containers:
+      - name: ext-authz
+        image: k13tv777/ext-authz:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50051
+        env:
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
+        - name: REDIS_HOST
+          value: "redis-master"
+        - name: JWKS_URL
+          value: "https://host.minikube.internal:8443/realms/zero-trust-realm/protocol/openid-connect/certs"
+        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ext-authz-service
+spec:
+  selector:
+    app: ext-authz
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+  type: ClusterIP

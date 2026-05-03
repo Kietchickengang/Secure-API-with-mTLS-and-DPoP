@@ -1,11 +1,11 @@
 services:
   auth-service:
-    image: k13tv777/ext-authz
+    image: k13tv777/ext-authz:v2
     ports:
       - "50051:50051"
     environment:
       - REDIS_HOST=redis-db
-      - JWKS_URL=http://keycloak-server/certs
+      - JWKS_URL=https://host.docker.internal:8443/realms/zero-trust-realm/protocol/openid-connect/certs
     depends_on:
       - redis-db
   redis-db:

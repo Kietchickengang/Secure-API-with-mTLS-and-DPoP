@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: envoy-server-cert
+spec:
+  secretName: machine-client-tls
+  issuerRef:
+    name: vault-issuer
+    kind: ClusterIssuer
+  commonName: api-gateway.default.svc.cluster.local
+  dnsNames:
+  - localhost
+  - envoy-gateway-service
+  - api-gateway.default.svc.cluster.local

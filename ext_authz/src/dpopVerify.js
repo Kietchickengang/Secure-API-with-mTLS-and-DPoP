@@ -13,7 +13,7 @@ async function verifyDPoP(dpopHeader, accessTokenPayload, reqMethod, reqUrl) {
   const jti = dpopPayload.jti;
   const alreadyUsed = await redis.get(`jti:${jti}`);
   if (alreadyUsed) throw new Error('DPoP JTI Replay Attack');
-  await redis.setex(`jti:${jti}`, 3600, 'used'); // Lưu 1 tiếng
+  await redis.setex(`jti:${jti}`, 3600, 'used'); // Save for an hour
 
   // Check htm (Method) & htu (URL) to ensure Proof bind with request
   if (dpopPayload.htm !== reqMethod || dpopPayload.htu !== reqUrl) {
