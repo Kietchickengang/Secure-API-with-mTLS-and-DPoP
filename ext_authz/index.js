@@ -10,7 +10,6 @@ const PROTO_PATH = __dirname + '/protos/envoy-api/envoy/service/auth/v3/external
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
   longs: String,
-  enums: String,
   defaults: true,
   oneofs: true,
   includeDirs: [
@@ -25,11 +24,9 @@ const envoyProto = grpc.loadPackageDefinition(packageDefinition).envoy.service.a
 
 async function check(call, callback) {
   console.log("---[EXT-AUTHZ-GRPC]--- Received request from Envoy!");
-  
-  // Extract header from origin request that Envoy processed
+
   const httpAttrs = call.request.attributes.request.http;
   const headers = httpAttrs.headers;
-  
   const authHeader = headers['authorization'];
   const dpopHeader = headers['dpop'];
   const certHeader = headers['x-forwarded-client-cert'];
@@ -41,20 +38,20 @@ async function check(call, callback) {
     const payload = await verifyAccessToken(token);
 
     if (authHeader.startsWith('DPoP')) {
-      // Regenerate URL to verify DPoP
       const scheme = headers['x-forwarded-proto'] || 'https';
       const host = headers['host'] || headers[':authority'];
       const fullUrl = `${scheme}://${host}${httpAttrs.path}`;
-      
-      await verifyDPoP(dpopHeader, payload, httpAttrs.method, fullUrl);
+
+      await verifyDPoP(dpopHeader, token, payload, httpAttrs.method, fullUrl);
     } else {
-      verifyMTLSBinding(certHeader, payload);
+      throw new Error("System requires DPoP Authorization!");
     }
 
+    verifyMTLSBinding(certHeader, payload);
     console.log(`---[Success]---\n Authorized: ${payload.sub}`);
-    
+
     callback(null, {
-      status: { code: grpc.status.OK },
+      status: { code: 0 },
       ok_response: {
         headers: [{ header: { key: 'x-auth-user', value: payload.sub } }]
       }
@@ -62,27 +59,26 @@ async function check(call, callback) {
 
   } catch (error) {
     console.error(`---[Forbidden]---\n ${error.message}`);
-    
-    // Envoy (PERMISSION_DENIED)
+
     callback(null, {
-      status: { code: grpc.status.PERMISSION_DENIED },
+      status: { code: 7 },
       denied_response: {
-        status: { code: grpc.status.PERMISSION_DENIED },
-        body: error.message
+        status: { code: 403 },
+        headers: [{ header: { key: 'content-type', value: 'application/json' } }],
+        body: JSON.stringify({
+          error: "Zero-Trust Verification Failed",
+          message: error.message
+        })
       }
     });
   }
 }
 
-// Initialize & run gRPC Server
 const server = new grpc.Server();
 server.addService(envoyProto.Authorization.service, { Check: check });
 
-server.bindAsync(`0.0.0.0:${config.PORT}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
-  if (error) {
-    console.error(error);
-    return;
-  }
+server.bindAsync(`0.0.0.0:${config.PORT || 50051}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
+  if (error) { console.error(error); return; }
   console.log(`gRPC Ext_Authz Service running on port ${port}`);
   server.start();
 });

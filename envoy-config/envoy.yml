@@ -62,6 +62,7 @@ data:
               "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
               require_client_certificate: true
               common_tls_context:
+                alpn_protocols: ["h2", "http/1.1"]
                 tls_certificates:
                 - certificate_chain:
                     filename: "/etc/envoy/certs/tls.crt"
