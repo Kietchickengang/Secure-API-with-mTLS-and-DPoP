@@ -1,0 +1,72 @@
+// 1. VALID TOKEN
+// 2. VALID DPOP
+// 3. INVALID DPOP
+
+// ***4. TESTCASE: HAPPY PATH
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// ***5. TESTCASE: HAVE TOKEN BUT NO PROOF
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $HACKER_DPOP" -k
+  
+// ***6. TESTCASE: REPLAY ATTACK
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// ***7. TESTCASE: NO CERT FOR mTLS
+
+curl -X GET https://192.168.49.2:31646/headers \
+  -H "Authorization: DPoP $VALID_TOKEN" \
+  -H "DPoP: $VALID_DPOP" -k
+  
+// 8. TESTCASE: FAKE CERT
+
+openssl req -x509 -newkey rsa:2048 -keyout fake.key -out fake.crt -days 1 -nodes -subj "/CN=hacker"
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert fake.crt --key fake.key \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// 9. TESTCASE: TOKEN TEMPERING
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP ${VALID_TOKEN}_1_H4CK3D_U_<3" \
+  -H "DPoP: $VALID_DPOP" -k
+  
+// 10. TESTCASE: WRONG HTM / HTU
+
+export WRONG_URL_DPOP=$(node -e "const fs = require('fs'); const crypto = require('crypto'); const { importJWK, SignJWT } = require('jose'); (async () => { const privateJwk = JSON.parse(fs.readFileSync('my-dpop-key.json')); const privateKey = await importJWK(privateJwk, 'ES256'); const { d, ...publicJwk } = privateJwk; const ath = crypto.createHash('sha256').update(process.env.VALID_TOKEN).digest('base64url'); const dpop = await new SignJWT({ htm: 'GET', htu: 'https://192.168.49.2:31646/xHelper', jti: crypto.randomBytes(16).toString('hex'), ath }).setProtectedHeader({ alg: 'ES256', jwk: publicJwk, typ: 'dpop+jwt' }).setIssuedAt().sign(privateKey); console.log(dpop); })()")
+
+curl -X GET https://192.168.49.2:31646/benign-app \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_URL_DPOP" -k
+  
+// 11. TESTCASE: CROSS-TOKEN ATTACK (ATH MISMATCH)
+
+export WRONG_ATH_DPOP=$(node -e "const fs = require('fs'); const crypto = require('crypto'); const { importJWK, SignJWT } = require('jose'); (async () => { const privateJwk = JSON.parse(fs.readFileSync('my-dpop-key.json')); const privateKey = await importJWK(privateJwk, 'ES256'); const { d, ...publicJwk } = privateJwk; const ath = crypto.createHash('sha256').update('HEHE_NO_ONE_KNOWS_I_FAKED_IT_:>').digest('base64url'); const dpop = await new SignJWT({ htm: 'GET', htu: 'https://192.168.49.2:31646/headers', jti: crypto.randomBytes(16).toString('hex'), ath }).setProtectedHeader({ alg: 'ES256', jwk: publicJwk, typ: 'dpop+jwt' }).setIssuedAt().sign(privateKey); console.log(dpop); })()")
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_ATH_DPOP" -k
+  
+// 12. TESTCASE: EXPIRED PROOF
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// 13. TESTCASE: FUTURE-DATED PROOF
+
+export FUTURE_DPOP=$(node -e "const fs = require('fs'); const crypto = require('crypto'); const { importJWK, SignJWT } = require('jose'); (async () => { const privateJwk = JSON.parse(fs.readFileSync('my-dpop-key.json')); const privateKey = await importJWK(privateJwk, 'ES256'); const { d, ...publicJwk } = privateJwk; const ath = crypto.createHash('sha256').update(process.env.VALID_TOKEN).digest('base64url'); const futureIat = Math.floor(Date.now() / 1000) + 120; const dpop = await new SignJWT({ htm: 'GET', htu: 'https://192.168.49.2:31646/headers', jti: crypto.randomBytes(16).toString('hex'), ath, iat: futureIat }).setProtectedHeader({ alg: 'ES256', jwk: publicJwk, typ: 'dpop+jwt' }).sign(privateKey); console.log(dpop); })()")
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $FUTURE_DPOP" -k

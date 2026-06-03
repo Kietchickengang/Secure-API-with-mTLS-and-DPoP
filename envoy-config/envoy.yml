@@ -70,7 +70,7 @@ data:
                     filename: "/etc/envoy/certs/tls.key"
                 validation_context:
                   trusted_ca:
-                    filename: "/etc/envoy/certs/ca.crt"
+                    filename: "/etc/envoy/node-ca/ca.crt"
                   crl:
                     filename: "/etc/envoy/crl/crl.pem"
 

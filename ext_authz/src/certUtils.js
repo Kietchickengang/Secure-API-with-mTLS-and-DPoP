@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 function verifyMTLSBinding(certHeader, accessTokenPayload) {
   console.log("\n---[mTLS Debug Check]---");
   console.log("1. Raw certHeader from Envoy:", certHeader);
@@ -18,16 +20,21 @@ function verifyMTLSBinding(certHeader, accessTokenPayload) {
   const tokenThumbprint = accessTokenPayload?.cnf?.['x5t#S256'];
   console.log("4. Extracted Token Thumbprint:", tokenThumbprint);
   
-  // if (!tokenThumbprint) {
-  //   throw new Error('mTLS Binding Failed: Token does not contain "cnf.x5t#S256". (Token was generated without mTLS binding)');
-  // }
+  if (!tokenThumbprint) {
+    throw new Error('mTLS Binding Failed: no cnf.x5t#S256 in token');
+  }
+  if (!certThumbprint) {
+    throw new Error('mTLS Binding Failed: no cert thumbprint from Envoy');
+  }
 
-  // if (!certThumbprint || certThumbprint !== tokenThumbprint.toLowerCase()) {
-  //   throw new Error(`mTLS Certificate Binding Mismatch! Cert: ${certThumbprint} vs Token: ${tokenThumbprint}`);
-  // }
+  const a = Buffer.from(certThumbprint);
+  const b = Buffer.from(tokenThumbprint.toLowerCase());
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    throw new Error('mTLS Certificate Binding Mismatch');
+  }
 
-  console.log("-> [mTLS Result]: PASS OK!");
-  return true;
+  console.log("-> [mTLS Result]: PASS OK!");
+  return true;
 }
 
 module.exports = { verifyMTLSBinding };

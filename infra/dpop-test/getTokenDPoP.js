@@ -9,8 +9,8 @@ async function runZeroTrustTest() {
   
   // Agent for Keycloak (uses client.crt)
   const keycloakAgent = new https.Agent({
-    cert: fs.readFileSync('client.crt'),
-    key: fs.readFileSync('client.key'),
+    cert: fs.readFileSync('valid-client.crt'),
+    key: fs.readFileSync('valid-client.key'),
     rejectUnauthorized: false
   });
 
@@ -34,7 +34,7 @@ async function runZeroTrustTest() {
   const dpopForToken = await new SignJWT({
     htm: 'POST',
     htu: keycloakUrl,
-    jti: crypto.randomUUID(),
+    jti: crypto.randomBytes(16).toString('hex'),
   })
     .setProtectedHeader({ alg: 'ES256', jwk: publicJwk, typ: 'dpop+jwt' })
     .setIssuedAt()
@@ -43,10 +43,16 @@ async function runZeroTrustTest() {
   let accessToken = '';
   try {
     const tokenParams = new URLSearchParams({
-      grant_type: 'password',
+      // grant_type: 'password',
+      // client_id: 'api-gatewate-client',
+      // username: 'k13t-du0n9',
+      // password: 'khonggiquyhondoclaptudo',
+
+      grant_type: 'client_credentials',
       client_id: 'api-gatewate-client',
-      username: 'k13t-du0n9',
-      password: 'khonggiquyhondoclaptudo'
+      client_secret: 'Cf18q68tal79D5sQ8bVRnNSLV4roRFr3',
+
+      dpop_jkt: jkt,
     });
 
     const tokenRes = await axios.post(keycloakUrl, tokenParams, {
@@ -74,8 +80,8 @@ async function runZeroTrustTest() {
   const dpopForApi = await new SignJWT({
     htm: 'GET',
     htu: apiUrl,
-    jti: crypto.randomUUID(),
-    ath
+    jti: crypto.randomBytes(16).toString('hex'),
+    ath: ath,
   })
     .setProtectedHeader({ alg: 'ES256', jwk: publicJwk, typ: 'dpop+jwt' })
     .setIssuedAt()

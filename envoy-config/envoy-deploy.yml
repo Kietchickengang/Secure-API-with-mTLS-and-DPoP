@@ -27,6 +27,9 @@ spec:
           readOnly: true
         - name: crl-volume
           mountPath: /etc/envoy/crl
+        - name: node-ca-volume
+          mountPath: /etc/envoy/node-ca
+          readOnly: true
         args: ["-c", "/etc/envoy/envoy.yml", "--log-level", "info"]
 
       volumes:
@@ -39,7 +42,9 @@ spec:
       - name: crl-volume
         secret:
           secretName: envoy-crl
-
+      - name: node-ca-volume
+        secret:
+          secretName: node-client-ca
 ---
 apiVersion: v1
 kind: Service
