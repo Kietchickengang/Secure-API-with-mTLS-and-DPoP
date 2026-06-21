@@ -7,8 +7,9 @@ const JWKS = createRemoteJWKSet(new URL(config.JWKS_URL));
 async function verifyAccessToken(token) {
   const { payload } = await jwtVerify(token, JWKS, {
     issuer: config.ISSUER,
-    clockTolerance: 30,//3600
-    // audience: '???'
+    clockTolerance: 30,
+    audience: config.AUDIENCE,
+    algorithms: config.ALGORITHMS,
   });
   return payload;
 }

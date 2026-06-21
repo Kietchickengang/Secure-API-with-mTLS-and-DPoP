@@ -26,7 +26,8 @@ spec:
           mountPath: /etc/envoy/certs
           readOnly: true
         - name: crl-volume
-          mountPath: /etc/envoy/crl
+          mountPath: /etc/envoy/crl/crl.pem
+          subPath: crl.pem
         - name: node-ca-volume
           mountPath: /etc/envoy/node-ca
           readOnly: true
@@ -42,6 +43,9 @@ spec:
       - name: crl-volume
         secret:
           secretName: envoy-crl
+          items:
+          - key: crl.pem
+            path: crl.pem
       - name: node-ca-volume
         secret:
           secretName: node-client-ca

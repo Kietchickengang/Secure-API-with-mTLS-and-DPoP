@@ -43,7 +43,8 @@ async function check(call, callback) {
       const fullUrl = `${scheme}://${host}${httpAttrs.path}`;
 
       await verifyDPoP(dpopHeader, token, payload, httpAttrs.method, fullUrl);
-    } else {
+    } 
+    else {
       throw new Error("System requires DPoP Authorization!");
     }
 
@@ -57,9 +58,9 @@ async function check(call, callback) {
       }
     });
 
-  } catch (error) {
+  } 
+  catch (error) {
     console.error(`---[Forbidden]---\n ${error.message}`);
-
     callback(null, {
       status: { code: 7 },
       denied_response: {

@@ -22,7 +22,6 @@ data:
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
 
-            # Extract metadata from Client Certificate
               forward_client_cert_details: SANITIZE_SET
               set_current_client_cert_details:
                 subject: true
@@ -73,13 +72,13 @@ data:
                     filename: "/etc/envoy/node-ca/ca.crt"
                   crl:
                     filename: "/etc/envoy/crl/crl.pem"
+                  only_verify_leaf_cert_crl: true
 
       clusters:
-      # Cluster for ext_authz service (Node.js)
       - name: ext_authz_cluster
         type: LOGICAL_DNS
         lb_policy: ROUND_ROBIN
-        http2_protocol_options: {} # !important for gRPC 
+        http2_protocol_options: {}
         load_assignment:
           cluster_name: ext_authz_cluster
           endpoints:
@@ -90,7 +89,6 @@ data:
                     address: ext-authz-service.default.svc.cluster.local
                     port_value: 50051
 
-      # Cluster backend (experiment)
       - name: experiment_api
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN

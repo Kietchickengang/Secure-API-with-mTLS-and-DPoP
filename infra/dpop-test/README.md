@@ -115,7 +115,7 @@ curl -X GET https://192.168.49.2:31646/benign-app \
   -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_URL_DPOP" -k
 ```
 
-**TC-08 — Cross-Token Attack (ath Mismatch)**
+**TC-08 — Cross-Token Attack (ath mismatch)**
 
 ```sh
 curl -X GET https://192.168.49.2:31646/headers \
@@ -123,10 +123,17 @@ curl -X GET https://192.168.49.2:31646/headers \
   -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_ATH_DPOP" -k
 ```
 
-**TC-09 — Expired Proof (iat)**
+**TC-09 — Expired Proof**
 
 ```sh
 curl -X GET https://192.168.49.2:31646/headers \
   --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
   -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+```
+**TC-10 - Future-dated proof**
+
+```sh
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $FUTURE_DPOP" -k
 ```

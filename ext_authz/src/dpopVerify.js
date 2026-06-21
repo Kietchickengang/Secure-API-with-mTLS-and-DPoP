@@ -18,16 +18,14 @@ async function verifyDPoP(dpopHeader, rawAccessToken, accessTokenPayload, reqMet
 
   const iat = dpopPayload.iat;
   if (!iat) throw new Error("Missing 'iat' in DPoP Proof");
+
   const now = Math.floor(Date.now() / 1000);
-  
   if (Math.abs(now - iat) > 60) {
     throw new Error(`DPoP proof expired or future-dated: iat=${iat}, now=${now}`);
   }
 
   const stored = await redis.set(`jti:${jti}`, 'used', 'NX', 'EX', 60);
-  if (!stored) {
-    throw new Error('DPoP jti replay attack: Token already used!');
-  }
+  if (!stored) throw new Error('DPoP jti replay attack: Token already used!');
 
   if (dpopPayload.htm !== reqMethod || dpopPayload.htu !== reqUrl) {
     throw new Error(`DPoP htm/htu mismatch! Expected: ${reqMethod} ${reqUrl}`);
@@ -48,7 +46,6 @@ async function verifyDPoP(dpopHeader, rawAccessToken, accessTokenPayload, reqMet
   if (accessTokenPayload.cnf.jkt !== actualJkt) {
     throw new Error('DPoP Binding Mismatch (jkt)!');
   }
-
   return true;
 }
 
