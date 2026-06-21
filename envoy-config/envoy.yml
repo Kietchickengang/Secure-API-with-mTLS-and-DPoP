@@ -44,6 +44,7 @@ data:
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
                   transport_api_version: V3
+                  failure_mode_allow: false 
                   grpc_service:
                     envoy_grpc:
                       cluster_name: ext_authz_cluster
@@ -79,6 +80,16 @@ data:
         type: LOGICAL_DNS
         lb_policy: ROUND_ROBIN
         http2_protocol_options: {}
+        transport_socket:                                   
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+            common_tls_context:
+              tls_certificates:
+              - certificate_chain: { filename: "/etc/envoy/certs/tls.crt" }
+                private_key:        { filename: "/etc/envoy/certs/tls.key" }
+              validation_context:
+                trusted_ca: { filename: "/etc/envoy/node-ca/ca.crt" }
         load_assignment:
           cluster_name: ext_authz_cluster
           endpoints:
