@@ -1,0 +1,66 @@
+// 1. VALID TOKEN
+// 2. VALID DPOP
+// 3. INVALID DPOP
+
+// ***4. TESTCASE: HAPPY PATH
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// ***5. TESTCASE: HAVE TOKEN BUT NO PROOF
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $HACKER_DPOP" -k
+  
+// ***6. TESTCASE: REPLAY ATTACK
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// ***7. TESTCASE: NO CERT FOR mTLS
+
+curl -X GET https://192.168.49.2:31646/headers \
+  -H "Authorization: DPoP $VALID_TOKEN" \
+  -H "DPoP: $VALID_DPOP" -k
+  
+// 8. TESTCASE: FAKE CERT
+
+openssl req -x509 -newkey rsa:2048 -keyout fake.key -out fake.crt -days 1 -nodes -subj "/CN=hacker"
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert fake.crt --key fake.key \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// 9. TESTCASE: TOKEN TEMPERING
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP ${VALID_TOKEN}_1_H4CK3D_U_<3" \
+  -H "DPoP: $VALID_DPOP" -k
+  
+// 10. TESTCASE: WRONG HTM / HTU
+
+curl -X GET https://192.168.49.2:31646/benign-app \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_URL_DPOP" -k
+  
+// 11. TESTCASE: CROSS-TOKEN ATTACK (ATH MISMATCH)
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $WRONG_ATH_DPOP" -k
+  
+// 12. TESTCASE: EXPIRED PROOF
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $VALID_DPOP" -k
+  
+// 13. TESTCASE: FUTURE-DATED PROOF
+
+curl -X GET https://192.168.49.2:31646/headers \
+  --cert valid-client.crt --key valid-client.key --cacert vault-ca.crt \
+  -H "Authorization: DPoP $VALID_TOKEN" -H "DPoP: $FUTURE_DPOP" -k
